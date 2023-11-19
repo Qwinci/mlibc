@@ -1535,6 +1535,12 @@ void Loader::_processRelocations(Relocation &rel) {
 		rel.relocate(rel.object()->baseAddress + rel.addend_rel());
 	} break;
 
+	case R_IRELATIVE: {
+		uintptr_t addr = rel.object()->baseAddress + rel.addend_rel();
+		uintptr_t (*fn)() = reinterpret_cast<uintptr_t (*)()>(addr);
+		rel.relocate(fn());
+	} break;
+
 	// DTPMOD and DTPREL are dynamic TLS relocations (for __tls_get_addr()).
 	// TPOFF is a relocation to the initial TLS model.
 	case R_TLS_DTPMOD: {
