@@ -144,6 +144,10 @@ size_t mbsrtowcs(wchar_t *wcs, const char **mbsp, size_t wc_limit, mbstate_t *st
 	}
 }
 
+extern "C" size_t __mbsrtowcs_chk(wchar_t *wcs, const char **mbsp, size_t wc_limit, mbstate_t *stp, size_t) {
+	return mbsrtowcs(wcs, mbsp, wc_limit, stp);
+}
+
 size_t mbsnrtowcs(wchar_t *wcs, const char **mbsp, size_t mb_limit, size_t wc_limit, mbstate_t *stp) {
 	__ensure(mbsp);
 

@@ -1982,6 +1982,14 @@ int sys_iopl(int level) {
 #endif
 }
 
+int sys_shutdown(int sockfd, int how) {
+	auto ret = do_syscall(SYS_shutdown, sockfd, how);
+	if (int e = sc_error(ret); e) {
+		return e;
+	}
+	return 0;
+}
+
 #endif // __MLIBC_GLIBC_OPTION
 
 } // namespace mlibc

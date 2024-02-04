@@ -27,6 +27,12 @@ int epoll_pwait(int epfd, struct epoll_event *evnts, int n, int timeout,
 	return raised;
 }
 
+extern "C" int epoll_pwait2(int epfd, struct epoll_event *evnts, int n, const struct timespec *timeout,
+               const sigset_t *sigmask) {
+	int timeout_ms = timeout->tv_sec * 1000 + timeout->tv_nsec / 1000000L;
+	return epoll_pwait(epfd, evnts, n, timeout_ms, sigmask);
+}
+
 int epoll_create1(int flags) {
 	int fd;
 	MLIBC_CHECK_OR_ENOSYS(mlibc::sys_epoll_create, -1);
@@ -54,5 +60,10 @@ int epoll_wait(int epfd, struct epoll_event *evnts, int n, int timeout) {
 		return -1;
 	}
 	return raised;
+}
+
+extern "C" int statx(int fd, const char *__restrict path, int flags, unsigned int mask, struct statx *__restrict buf) {
+	errno = ENOSYS;
+	return -1;
 }
 

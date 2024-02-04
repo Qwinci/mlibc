@@ -158,6 +158,13 @@ SharedObject *ObjectRepository::injectStaticObject(frg::string_view name,
 
 SharedObject *ObjectRepository::requestObjectWithName(frg::string_view name,
 		SharedObject *origin, Scope *localScope, bool createScope, uint64_t rts) {
+	if (name == "libpthread.so.0" || name == "libc.so.2" || name == "libc.so.6" || name == "libm.so.6" || name == "libdl.so.2" ||
+		name == "librt.so.1" || name == "libresolv.so.2") {
+		name = "libc.so";
+	}else if (name == "ld-linux-x86-64.so.2") {
+		name = "ld.so";
+	}
+	
 	if (auto obj = findLoadedObject(name))
 		return obj;
 
@@ -746,6 +753,7 @@ void ObjectRepository::_discoverDependencies(SharedObject *object,
 
 void ObjectRepository::_addLoadedObject(SharedObject *object) {
 	_nameMap.insert(object->name, object);
+	mlibc::infoLogger() << object->name << frg::endlog;
 	loadedObjects.push_back(object);
 }
 
@@ -786,11 +794,11 @@ void processLateRelocation(Relocation rel) {
 
 		p = Scope::resolveGlobalOrLocal(*globalScope, rel.object()->localScope,
 				r.getString(), rel.object()->objectRts, Scope::resolveCopy);
-		__ensure(p);
 	}
 
 	switch(rel.type()) {
 	case R_COPY:
+		__ensure(p);
 		memcpy(rel.destination(), (void *)p->virtualAddress(), p->symbol()->st_size);
 		break;
 
@@ -811,7 +819,7 @@ void processLateRelocation(Relocation rel) {
 #endif
 
 	default:
-		__ensure(!"Unknown late relocation type");
+		break;
 	}
 }
 
@@ -1535,12 +1543,6 @@ void Loader::_processRelocations(Relocation &rel) {
 		rel.relocate(rel.object()->baseAddress + rel.addend_rel());
 	} break;
 
-	case R_IRELATIVE: {
-		uintptr_t addr = rel.object()->baseAddress + rel.addend_rel();
-		uintptr_t (*fn)() = reinterpret_cast<uintptr_t (*)()>(addr);
-		rel.relocate(fn());
-	} break;
-
 	// DTPMOD and DTPREL are dynamic TLS relocations (for __tls_get_addr()).
 	// TPOFF is a relocation to the initial TLS model.
 	case R_TLS_DTPMOD: {
@@ -1692,7 +1694,7 @@ void Loader::_processStaticRelocations(SharedObject *object) {
 }
 
 // TODO: TLSDESC relocations aren't aarch64 specific
-#ifdef __aarch64__
+#if defined(__aarch64__) || defined(__x86_64__)
 extern "C" void *__mlibcTlsdescStatic(void *);
 extern "C" void *__mlibcTlsdescDynamic(void *);
 #endif
@@ -1712,6 +1714,7 @@ void Loader::_processLazyRelocations(SharedObject *object) {
 	__ensure(object->lazyExplicitAddend.has_value());
 	size_t rel_size = (*object->lazyExplicitAddend) ? sizeof(elf_rela) : sizeof(elf_rel);
 
+	bool hasUnresolvedSymbols = false;
 	for(size_t offset = 0; offset < object->lazyTableSize; offset += rel_size) {
 		elf_info type;
 		elf_info symbol_index;
@@ -1741,9 +1744,11 @@ void Loader::_processLazyRelocations(SharedObject *object) {
 				auto p = Scope::resolveGlobalOrLocal(*globalScope, object->localScope, r.getString(), object->objectRts, 0);
 
 				if(!p) {
-					if(ELF_ST_BIND(symbol->st_info) != STB_WEAK)
-						mlibc::panicLogger() << "rtdl: Unresolved JUMP_SLOT symbol "
-								<< r.getString() << " in object " << object->name << frg::endlog;
+					if(ELF_ST_BIND(symbol->st_info) != STB_WEAK) {
+						mlibc::infoLogger() << "rtdl: Unresolved JUMP_SLOT symbol "
+							<< r.getString() << " in object " << object->name << frg::endlog;
+						hasUnresolvedSymbols = true;
+					}
 
 					if(verbose)
 						mlibc::infoLogger() << "rtdl: Unresolved weak JUMP_SLOT symbol "
@@ -1764,9 +1769,14 @@ void Loader::_processLazyRelocations(SharedObject *object) {
 			break;
 		}
 #endif
-// TODO: TLSDESC relocations aren't aarch64 specific
 #if defined(__aarch64__)
-		case R_AARCH64_TLSDESC: {
+#define R_TLSDESC R_AARCH64_TLSDESC
+#elif defined(__x86_64__)
+#define R_TLSDESC R_X86_64_TLSDESC
+#endif
+// TODO: TLSDESC relocations aren't aarch64 specific
+#if defined(__aarch64__) || defined(__x86_64__)
+		case R_TLSDESC: {
 			size_t symValue = 0;
 			SharedObject *target = nullptr;
 
@@ -1795,8 +1805,11 @@ void Loader::_processLazyRelocations(SharedObject *object) {
 				((uint64_t *)rel_addr)[0] = reinterpret_cast<uintptr_t>(&__mlibcTlsdescStatic);
 				// TODO: guard the subtraction of TCB size with `if constexpr (tlsAboveTp)`
 				// for the arch-generic case
-				__ensure(tlsAboveTp == true);
-				((uint64_t *)rel_addr)[1] = symValue + target->tlsOffset + addend - sizeof(Tcb);
+				uint64_t value = symValue + target->tlsOffset + addend;
+				if constexpr (tlsAboveTp) {
+					value -= sizeof(Tcb);
+				}
+				((uint64_t *)rel_addr)[1] = value;
 			} else {
 				struct TlsdescData {
 					uintptr_t tlsIndex;
@@ -1822,6 +1835,10 @@ void Loader::_processLazyRelocations(SharedObject *object) {
 			mlibc::panicLogger() << "unimplemented lazy relocation type " << type << frg::endlog;
 			break;
 		}
+	}
+
+	if (hasUnresolvedSymbols) {
+		mlibc::panicLogger() << "object had unresolved symbols" << frg::endlog;
 	}
 }
 

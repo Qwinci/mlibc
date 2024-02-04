@@ -536,6 +536,14 @@ ssize_t pread(int fd, void *buf, size_t n, off_t off) {
 	return num_read;
 }
 
+extern "C" ssize_t __pread_chk(int fd, void *buf, size_t n, off_t off, size_t) {
+	return pread(fd, buf, n, off);
+}
+
+extern "C" ssize_t pread64(int fd, void *buf, size_t n, size_t off) {
+	return pread(fd, buf, n, off);
+}
+
 ssize_t pwrite(int fd, const void *buf, size_t n, off_t off) {
 	ssize_t num_written;
 
@@ -560,6 +568,10 @@ ssize_t readlink(const char *__restrict path, char *__restrict buffer, size_t ma
 ssize_t readlinkat(int, const char *__restrict, char *__restrict, size_t) {
 	__ensure(!"Not implemented");
 	__builtin_unreachable();
+}
+
+extern "C" ssize_t __readlinkat_chk(int fd, const char *__restrict path, char *__restrict buf, size_t size, size_t) {
+	return readlinkat(fd, path, buf, size);
 }
 
 int rmdir(const char *path) {
@@ -759,6 +771,9 @@ long sysconf(int number) {
 		case _SC_HOST_NAME_MAX:
 			mlibc::infoLogger() << "\e[31mmlibc: sysconf(_SC_HOST_NAME_MAX) unconditionally returns fallback value 256\e[39m" << frg::endlog;
 			return 256;
+		case _SC_LOGIN_NAME_MAX:
+			mlibc::infoLogger() << "\e[31mmlibc: sysconf(_SC_LOGIN_NAME_MAX) unconditionally returns fallback value 256\e[39m" << frg::endlog;
+			return 256;
 		default:
 			mlibc::infoLogger() << "\e[31mmlibc: sysconf() call is not implemented, number: " << number << "\e[39m" << frg::endlog;
 			errno = EINVAL;
@@ -910,6 +925,10 @@ ssize_t read(int fd, void *buf, size_t count) {
 		return (ssize_t)-1;
 	}
 	return bytes_read;
+}
+
+extern "C" ssize_t __read_chk(int fd, void *buf, size_t count, size_t) {
+	return read(fd, buf, count);
 }
 
 off_t lseek(int fd, off_t offset, int whence) {
@@ -1112,6 +1131,11 @@ int access(const char *path, int mode) {
 		return -1;
 	}
 	return 0;
+}
+
+extern "C" int eaccess(const char *path, int mode) {
+	mlibc::infoLogger() << "eaccess is not implemented properly" << frg::endlog;
+	return access(path, mode);
 }
 
 char *getusershell(void) {

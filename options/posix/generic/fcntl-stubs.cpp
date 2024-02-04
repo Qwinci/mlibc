@@ -30,7 +30,74 @@ int fcntl(int fd, int command, ...) {
 	return result;
 }
 
+extern "C" int fcntl64(int fd, int command, ...) {
+	va_list args;
+	va_start(args, command);
+	int result;
+	MLIBC_CHECK_OR_ENOSYS(mlibc::sys_fcntl, -1);
+	if(int e = mlibc::sys_fcntl(fd, command, args, &result); e) {
+		errno = e;
+		return -1;
+	}
+	va_end(args);
+	return result;
+}
+
 int openat(int dirfd, const char *pathname, int flags, ...) {
+	va_list args;
+	va_start(args, flags);
+	mode_t mode = 0;
+	int fd;
+
+	if((flags & (O_CREAT | O_TMPFILE)))
+		mode = va_arg(args, mode_t);
+
+	MLIBC_CHECK_OR_ENOSYS(mlibc::sys_openat, -1);
+	if(int e = mlibc::sys_openat(dirfd, pathname, flags, mode, &fd); e) {
+		errno = e;
+		return -1;
+	}
+	va_end(args);
+	return fd;
+}
+
+extern "C" int __openat_2(int dirfd, const char *pathname, int flags, ...) {
+	va_list args;
+	va_start(args, flags);
+	mode_t mode = 0;
+	int fd;
+
+	if((flags & (O_CREAT | O_TMPFILE)))
+		mode = va_arg(args, mode_t);
+
+	MLIBC_CHECK_OR_ENOSYS(mlibc::sys_openat, -1);
+	if(int e = mlibc::sys_openat(dirfd, pathname, flags, mode, &fd); e) {
+		errno = e;
+		return -1;
+	}
+	va_end(args);
+	return fd;
+}
+
+extern "C" int openat64(int dirfd, const char *pathname, int flags, ...) {
+	va_list args;
+	va_start(args, flags);
+	mode_t mode = 0;
+	int fd;
+
+	if((flags & (O_CREAT | O_TMPFILE)))
+		mode = va_arg(args, mode_t);
+
+	MLIBC_CHECK_OR_ENOSYS(mlibc::sys_openat, -1);
+	if(int e = mlibc::sys_openat(dirfd, pathname, flags, mode, &fd); e) {
+		errno = e;
+		return -1;
+	}
+	va_end(args);
+	return fd;
+}
+
+extern "C" int __openat64_2(int dirfd, const char *pathname, int flags, ...) {
 	va_list args;
 	va_start(args, flags);
 	mode_t mode = 0;
@@ -105,4 +172,25 @@ int open(const char *pathname, int flags, ...) {
 	}
 	return fd;
 }
+
+extern "C" int open64(const char *pathname, int flags, ...) {
+	mode_t mode = 0;
+
+	if ((flags & O_CREAT) || (flags & O_TMPFILE)) {
+		va_list args;
+		va_start(args, flags);
+		mode = va_arg(args, mode_t);
+		va_end(args);
+	}
+
+	int fd;
+	if(int e = mlibc::sys_open(pathname, flags, mode, &fd); e) {
+		errno = e;
+		return -1;
+	}
+	return fd;
+}
+
+extern "C" [[gnu::alias("open")]] int __open_2(const char *file, int oflag, ...);
+extern "C" [[gnu::alias("open64")]] int __open64_2(const char *pathname, int flags, ...);
 

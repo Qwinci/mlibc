@@ -144,6 +144,8 @@ if not headers_only
 			endif
 		endforeach
 
+	#rtdl_include_dirs += cplusplus_include_path
+	#libc_include_dirs += cplusplus_include_path
 		rtdl_include_dirs += cplusplus_include_path
 		libc_include_dirs += cplusplus_include_path
 	endif
@@ -386,6 +388,7 @@ subdir('options/iconv')
 subdir('options/intl')
 subdir('options/crypt')
 subdir('options/bsd')
+subdir('options/lfs64')
 
 rtlib_deps = []
 

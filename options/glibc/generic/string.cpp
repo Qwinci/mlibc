@@ -17,6 +17,14 @@ char *__mlibc_gnu_basename_c(const char *path) {
 	return basename_component + 1;
 }
 
+extern "C" char *__xpg_basename(const char *path) {
+	char *basename_component = strrchr(path, '/');
+	if (!basename_component) {
+		return const_cast<char *>(path);
+	}
+	return basename_component + 1;
+}
+
 
 /* GNU exposes these overloads, and as a result, we should probably have them
  * checked, to make sure we actually match expectations.

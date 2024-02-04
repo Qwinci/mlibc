@@ -19,6 +19,11 @@ char *strcpy(char *__restrict dest, const char *src) {
 	*dest_bytes = 0;
 	return dest;
 }
+
+extern "C" char *__strcpy_chk(char *__restrict dest, const char *__restrict src, size_t destlen) {
+	return strcpy(dest, src);
+}
+
 char *strncpy(char *__restrict dest, const char *src, size_t max_size) {
 	auto dest_bytes = static_cast<char *>(dest);
 	auto src_bytes = static_cast<const char *>(src);
@@ -34,10 +39,19 @@ char *strncpy(char *__restrict dest, const char *src, size_t max_size) {
 	return dest;
 }
 
+extern "C" char *__strncpy_chk(char *__restrict s1, const char *__restrict s2, size_t n, size_t s1len) {
+	return strncpy(s1, s2, n);
+}
+
 char *strcat(char *__restrict dest, const char *__restrict src) {
 	strcpy(dest + strlen(dest), src);
 	return dest;
 }
+
+extern "C" char * __strcat_chk(char *dest, const char *src, size_t destlen) {
+	return strcat(dest, src);
+}
+
 char *strncat(char *__restrict dest, const char *__restrict src, size_t max_size) {
 	auto dest_bytes = static_cast<char *>(dest);
 	auto src_bytes = static_cast<const char *>(src);
@@ -49,6 +63,10 @@ char *strncat(char *__restrict dest, const char *__restrict src, size_t max_size
 	}
 	*dest_bytes = 0;
 	return dest;
+}
+
+extern "C" char *__strncat_chk(char *__restrict s1, const char *__restrict s2, size_t n, size_t s1len) {
+	return strncat(s1, s2,  n);
 }
 
 int memcmp(const void *a, const void *b, size_t size) {
@@ -119,6 +137,15 @@ void *memchr(const void *s, int c, size_t size) {
 			return const_cast<unsigned char *>(s_bytes + i);
 	return nullptr;
 }
+
+#include <stdint.h>
+
+extern "C" void *rawmemchr(const void *s, int c) {
+	return memchr(s, c, SIZE_MAX);
+}
+
+extern "C" [[gnu::alias("rawmemchr")]] void *__rawmemchr(const void *s, int c);
+
 char *strchr(const char *s, int c) {
 	size_t i = 0;
 	while(s[i]) {
@@ -215,6 +242,9 @@ char *strtok_r(char *__restrict s, const char *__restrict del, char **__restrict
 		return nullptr;
 	return tok;
 }
+
+extern "C" [[gnu::alias("strtok_r")]] char *__strtok_r(char *__restrict s, const char *__restrict del, char **__restrict m);
+
 char *strtok(char *__restrict s, const char *__restrict delimiter) {
         static char *saved;
         return strtok_r(s, delimiter, &saved);
@@ -248,6 +278,8 @@ unsigned long long wcstoull(const wchar_t *__restrict nptr, wchar_t **__restrict
 	return mlibc::stringToInteger<unsigned long long, wchar_t>(nptr, endptr, base);
 }
 
+extern "C" [[gnu::alias("wcstol")]] long __isoc23_wcstol(const wchar_t *__restrict nptr, wchar_t **__restrict endptr, int base);
+
 wchar_t *wcscpy(wchar_t *__restrict dest, const wchar_t *__restrict src) {
 	wchar_t *a = dest;
 	while((*dest++ = *src++));
@@ -262,14 +294,26 @@ wchar_t *wcsncpy(wchar_t *__restrict dest, const wchar_t *__restrict src, size_t
 	return a;
 }
 
+extern "C" wchar_t *__wcsncpy_chk(wchar_t *__restrict dest, const wchar_t *__restrict src, size_t n, size_t) {
+	return wcsncpy(dest, src, n);
+}
+
 wchar_t *wmemcpy(wchar_t *__restrict dest, const wchar_t *__restrict src, size_t n) {
 	memcpy(dest, src, n * sizeof(wchar_t));
 	return dest;
 }
 
+extern "C" wchar_t *__wmemcpy_chk(wchar_t *__restrict dest, const wchar_t *__restrict src, size_t n, size_t) {
+	return wmemcpy(dest, src, n);
+}
+
 wchar_t *wmemmove(wchar_t *dest, const wchar_t *src, size_t n) {
 	memmove(dest, src, n * sizeof(wchar_t));
 	return dest;
+}
+
+extern "C" wchar_t *__wmemmove_chk(wchar_t *dest, const wchar_t *src, size_t n, size_t) {
+	return wmemmove(dest, src, n);
 }
 
 wchar_t *wcscat(wchar_t *__restrict dest, const wchar_t *__restrict src) {
@@ -480,6 +524,10 @@ int strerror_r(int e, char *buffer, size_t bufsz) {
 
 void *mempcpy(void *dest, const void *src, size_t len) {
 	return (char *)memcpy(dest, src, len) + len;
+}
+
+extern "C" void *__mempcpy_chk(void *dest, const void *src, size_t len, size_t) {
+	return mempcpy(dest, src, len);
 }
 
 // GNU extensions.

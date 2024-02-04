@@ -76,3 +76,34 @@ sc_word_t __do_syscall6(long sc,
 			: "rcx", "r11", "memory");
 	return ret;
 }
+
+#if !MLIBC_BUILDING_RTDL
+#include <errno.h>
+extern "C" int __syscall_error(sc_word_t v) {
+	if(static_cast<unsigned long>(v) > -4096UL) {
+		errno = -v;
+		return -1;
+	}
+	return 0;
+}
+
+asm(
+	".globl syscall\n"
+	".type syscall, @function\n"
+	"syscall:\n"
+	"mov %rdi, %rax;"
+	"mov %rsi, %rdi;"
+	"mov %rdx, %rsi;"
+	"mov %rcx, %rdx;"
+	"mov %r8, %r10;"
+	"mov %r9, %r8;"
+	"mov 8(%rsp), %r9;"
+	"syscall;"
+	"cmpq $-4095, %rax;"
+	"jae 1f;"
+	"ret;"
+	"1:\n"
+	"call __syscall_error;"
+	"ret"
+);
+#endif

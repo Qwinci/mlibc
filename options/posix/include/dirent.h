@@ -24,7 +24,7 @@ extern "C" {
 			off_t d_off; \
 			unsigned short d_reclen; \
 			unsigned char d_type; \
-			char d_name[1024];
+			char d_name[256];
 
 struct dirent {
 	__MLIBC_DIRENT_BODY

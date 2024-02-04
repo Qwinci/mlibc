@@ -24,6 +24,7 @@ struct sysinfo {
 #ifndef __MLIBC_ABI_ONLY
 
 int sysinfo(struct sysinfo *);
+int get_nprocs(void);
 
 #endif /* !__MLIBC_ABI_ONLY */
 

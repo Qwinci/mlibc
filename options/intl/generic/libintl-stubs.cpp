@@ -3,8 +3,9 @@
 
 char *gettext(const char *msgid) {
 	(void)msgid;
-	__ensure(!"Not implemented");
-	__builtin_unreachable();
+	//__ensure(!"Not implemented");
+	//__builtin_unreachable();
+	return (char*) msgid;
 }
 
 char *dgettext(const char *domainname, const char *msgid) {
@@ -19,8 +20,9 @@ char *dcgettext(const char *domainname, const char *msgid,
 	(void)domainname;
 	(void)msgid;
 	(void)category;
-	__ensure(!"Not implemented");
-	__builtin_unreachable();	
+	return (char *)msgid;
+	//__ensure(!"Not implemented");
+	//__builtin_unreachable();	
 }
 
 char *ngettext(const char *msgid, const char *msgid_plural, unsigned long int n) {
@@ -61,13 +63,13 @@ char *textdomain(const char *domainname) {
 char *bindtextdomain(const char *domainname, const char *dirname) {
 	(void)domainname;
 	(void)dirname;
-	__ensure(!"Not implemented");
-	__builtin_unreachable();
+	//__ensure(!"Not implemented");
+	//__builtin_unreachable();
+	return "UTF-8";
 }
 
 char *bind_textdomain_codeset(const char *domainname, const char *codeset) {
 	(void)domainname;
 	(void)codeset;
-	__ensure(!"Not implemented");
-	__builtin_unreachable();
+	return "UTF-8";
 }

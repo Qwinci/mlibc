@@ -108,6 +108,7 @@ struct __mlibc_barrier {
 	unsigned int __mlibc_seq;
 	unsigned int __mlibc_flags;
 };
+static_assert(sizeof(__mlibc_barrier) <= 32);
 typedef struct __mlibc_barrier pthread_barrier_t;
 
 struct __mlibc_fair_rwlock {
@@ -115,6 +116,7 @@ struct __mlibc_fair_rwlock {
 	unsigned int __mlibc_rc; // Reader count (not reference count).
 	unsigned int __mlibc_flags;
 };
+static_assert(sizeof(__mlibc_fair_rwlock) <= 56);
 typedef struct __mlibc_fair_rwlock pthread_rwlock_t;
 
 struct __mlibc_rwlockattr {

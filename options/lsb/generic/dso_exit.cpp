@@ -32,6 +32,8 @@ extern "C" int __cxa_atexit(void (*function)(void *), void *argument, void *hand
 	return 0;
 }
 
+extern "C" [[gnu::alias("__cxa_atexit")]] int __cxa_thread_atexit_impl();
+
 void __mlibc_do_finalize() {
 	ExitQueue &eq = getExitQueue();
 	for(size_t i = eq.size(); i > 0; i--) {

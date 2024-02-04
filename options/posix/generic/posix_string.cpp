@@ -22,6 +22,8 @@ char *strdup(const char *string) {
 	return new_string;
 }
 
+extern "C" [[gnu::alias("strdup")]] char *__strdup(const char *);
+
 char *strndup(const char *string, size_t max_size) {
 	auto num_bytes = strnlen(string, max_size);
 	char *new_string = (char *)malloc(num_bytes + 1);
@@ -37,6 +39,10 @@ char *stpcpy(char *__restrict dest, const char *__restrict src) {
 	auto n = strlen(src);
 	memcpy(dest, src, n + 1);
 	return dest + n;
+}
+
+extern "C" char *__stpcpy_chk(char *__restrict dest, const char *__restrict src, size_t destlen) {
+	return stpcpy(dest, src);
 }
 
 char *stpncpy(char *__restrict dest, const char *__restrict src, size_t n) {
@@ -163,6 +169,10 @@ size_t strlcpy(char *d, const char *s, size_t n) {
 	*d = 0;
 finish:
 	return d-d0 + strlen(s);
+}
+
+extern "C" size_t __strlcpy_chk(char *d, const char *s, size_t n, size_t) {
+	return strlcpy(d, s, n);
 }
 
 size_t strlcat(char *d, const char *s, size_t n) {

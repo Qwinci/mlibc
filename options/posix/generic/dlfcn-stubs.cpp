@@ -14,7 +14,7 @@ struct __dlapi_symbol {
 extern "C" const char *__dlapi_error();
 extern "C" void *__dlapi_open(const char *, int, void *);
 extern "C" void *__dlapi_resolve(void *, const char *, void *);
-extern "C" int __dlapi_reverse(const void *, __dlapi_symbol *);
+extern "C" int __dlapi_reverse(const void *, __dlapi_symbol *, void **, int);
 extern "C" int __dlapi_close(void *);
 
 int dlclose(void *handle) {
@@ -47,13 +47,26 @@ void *dlvsym(void *__restrict handle, const char *__restrict string, const char 
 //gnu extensions
 int dladdr(const void *ptr, Dl_info *out) {
 	__dlapi_symbol info;
-	if(__dlapi_reverse(ptr, &info))
+	if(__dlapi_reverse(ptr, &info, nullptr, 0))
 		return 0;
 
 	out->dli_fname = info.file;
 	out->dli_fbase = info.base;
 	out->dli_sname = info.symbol;
 	out->dli_saddr = info.address;
+	return 1;
+}
+
+extern "C" int dladdr1(void *ptr, Dl_info *out, void **info, int flags) {
+	__dlapi_symbol data;
+	if(__dlapi_reverse(ptr, &data, info, flags))
+		return 0;
+
+	out->dli_fname = data.file;
+	out->dli_fbase = data.base;
+	out->dli_sname = data.symbol;
+	out->dli_saddr = data.address;
+
 	return 1;
 }
 

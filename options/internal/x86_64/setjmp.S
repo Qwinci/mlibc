@@ -52,3 +52,17 @@ longjmp:
 	jmp  *0x38(%rdi)
 .section .note.GNU-stack,"",%progbits
 
+.global _setjmp
+.type _setjmp, "function"
+_setjmp:
+jmp setjmp
+
+.global _longjmp
+.type _longjmp, "function"
+_longjmp:
+jmp longjmp
+
+.global __longjmp_chk
+.type __longjmp_chk, "function"
+__longjmp_chk:
+	jmp longjmp

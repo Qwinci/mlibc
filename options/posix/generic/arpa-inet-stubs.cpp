@@ -198,9 +198,24 @@ int inet_pton(int af, const char *__restrict src, void *__restrict dst) {
 			memcpy(&addr->s_addr, array, 4);
 			break;
 		}
-		case AF_INET6:
-			mlibc::infoLogger() << "inet_pton: ipv6 is not implemented!" << frg::endlog;
-			/* fallthrough */
+		case AF_INET6: {
+			uint16_t array[8] = {};
+			for (int i = 0; i < 8; i++) {
+				char *end;
+				long value = strtol(src, &end, 16);
+				if (value > 0xFFFF) {
+					return 0;
+				}
+				if (*end != '\0' && *end != ':') {
+					return 0;
+				}
+				src = end + 1;
+				array[i] = value;
+			}
+			auto addr = reinterpret_cast<struct in6_addr*>(dst);
+			memcpy(&addr->s6_addr, array, 16);
+			break;
+		}
 		default:
 			errno = EAFNOSUPPORT;
 			return -1;

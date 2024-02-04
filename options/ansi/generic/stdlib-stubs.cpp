@@ -77,7 +77,8 @@ float strtof(const char *__restrict string, char **__restrict end) {
 	return mlibc::strtofp<float>(string, end);
 }
 long double strtold(const char *__restrict string, char **__restrict end) {
-	return mlibc::strtofp<long double>(string, end);
+	auto ret = mlibc::strtofp<long double>(string, end);
+	return ret;
 }
 
 long strtol(const char *__restrict string, char **__restrict end, int base) {
@@ -92,6 +93,11 @@ unsigned long strtoul(const char *__restrict string, char **__restrict end, int 
 unsigned long long strtoull(const char *__restrict string, char **__restrict end, int base) {
 	return mlibc::stringToInteger<unsigned long long, char>(string, end, base);
 }
+
+extern "C" [[gnu::alias("strtol")]] long __isoc23_strtol(const char* __restrict, char **__restrict, int);
+extern "C" [[gnu::alias("strtoll")]] long __isoc23_strtoll(const char* __restrict, char **__restrict, int);
+extern "C" [[gnu::alias("strtoul")]] unsigned long __isoc23_strtoul(const char* __restrict, char **__restrict, int);
+extern "C" [[gnu::alias("strtoull")]] unsigned long long __isoc23_strtoull(const char* __restrict, char **__restrict, int);
 
 frg::mt19937 __mlibc_rand_engine;
 
@@ -209,9 +215,9 @@ void _Exit(int status) {
 }
 
 // getenv() is provided by POSIX
-void quick_exit(int) {
-	__ensure(!"Not implemented");
-	__builtin_unreachable();
+void quick_exit(int status) {
+	// todo call functions
+	exit(status);
 }
 
 extern char **environ;
@@ -486,6 +492,10 @@ void *malloc(size_t size) {
 	return nptr;
 }
 
+extern "C" int malloc_trim(size_t) {
+	return 0;
+}
+
 void *realloc(void *ptr, size_t size) {
 	auto nptr = getAllocator().reallocate(ptr, size);
 	// TODO: Print PID only if POSIX option is enabled.
@@ -507,5 +517,17 @@ int posix_memalign(void **out, size_t align, size_t size) {
 	// TODO: Make the allocator alignment-aware.
 	__ensure(!(reinterpret_cast<uintptr_t>(p) & (align - 1)));
 	*out = p;
+	return 0;
+}
+
+extern "C" int strfromf128(char *__restrict s, size_t n, const char *__restrict fmt, __float128 fp) {
+	mlibc::infoLogger() << "mlibc: strfromf128 is a stub" << frg::endlog;
+	return ENOSYS;
+}
+
+extern "C" __float128 strtof128(const char *__restrict nptr, char **__restrict endptr) {
+	if (endptr)
+		*endptr = const_cast<char*>(nptr);
+	mlibc::infoLogger() << "mlibc: strtof128 is a stub" << frg::endlog;
 	return 0;
 }

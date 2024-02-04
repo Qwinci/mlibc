@@ -19,6 +19,7 @@ libc_sources += files(
 	'generic/glibc-assert.cpp',
 	'generic/malloc.cpp',
 	'generic/sys-io.cpp',
+	'generic/ctype.cpp',
 )
 
 if not no_headers

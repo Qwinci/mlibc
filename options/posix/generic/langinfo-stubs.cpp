@@ -13,3 +13,5 @@ char *nl_langinfo_l(nl_item, locale_t) {
 	__builtin_unreachable();
 }
 
+extern "C" [[gnu::alias("nl_langinfo_l")]] char *__nl_langinfo_l(nl_item, locale_t);
+

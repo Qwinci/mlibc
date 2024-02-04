@@ -25,6 +25,7 @@ const char __utc[] = "UTC";
 // Variables defined by POSIX.
 int daylight;
 long timezone;
+extern "C" [[gnu::alias("timezone")]] long __timezone;
 char *tzname[2];
 
 static FutexLock __time_lock;

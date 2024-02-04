@@ -27,5 +27,10 @@ int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout_ts, co
 
 	return ready;
 }
+
+extern "C" int __poll_chk(struct pollfd *fds, nfds_t count, int timeout) {
+	return poll(fds, count, timeout);
+}
+
 #endif // __MLIBC_LINUX_OPTION
 

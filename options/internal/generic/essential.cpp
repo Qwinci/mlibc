@@ -106,6 +106,10 @@ void *memcpy(void *__restrict dest, const void *__restrict src, size_t n) {
 	return forward_copy(dest, src, n);
 }
 
+extern "C" void *__memcpy_chk(void *__restrict dest, const void *__restrict src, size_t len, size_t destlen) {
+	return memcpy(dest, src, len);
+}
+
 
 // --------------------------------------------------------------------------------------
 // memset() implementation.
@@ -207,6 +211,10 @@ void *memmove(void *dest, const void *src, size_t size) {
 			dest_bytes[size - i - 1] = src_bytes[size - i - 1];
 	}
 	return dest;
+}
+
+extern "C" void *__memmove_chk(void *dest, const void *src, size_t len, size_t destlen) {
+	return memmove(dest, src, len);
 }
 
 size_t strlen(const char *s) {

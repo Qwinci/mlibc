@@ -115,9 +115,13 @@ wctype_t wctype_l(const char* p, locale_t) {
     return wctype(p);
 }
 
+extern "C" [[gnu::alias("wctype_l")]] wctype_t __wctype_l(const char*, locale_t);
+
 int iswctype_l(wint_t w, wctype_t t, locale_t) {
     return iswctype(w, t);
 }
+
+extern "C" [[gnu::alias("iswctype_l")]] wint_t __iswctype_l(wint_t, locale_t);
 
 wint_t towlower_l(wint_t c, locale_t) {
     return towlower(c);
@@ -126,6 +130,9 @@ wint_t towlower_l(wint_t c, locale_t) {
 wint_t towupper_l(wint_t c, locale_t) {
     return towupper(c);
 }
+
+extern "C" [[gnu::alias("towupper_l")]] wint_t __towupper_l(wint_t, locale_t);
+extern "C" [[gnu::alias("towlower_l")]] wint_t __towlower_l(wint_t, locale_t);
 
 wctrans_t wctrans_l(const char* c, locale_t) {
     return wctrans(c);

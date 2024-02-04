@@ -3,6 +3,7 @@ lsb_sources = files(
 	'generic/auxv.cpp',
 	'generic/dso_exit.cpp',
 	'generic/tls.cpp',
+	'generic/redir.cpp',
 )
 
 if not no_headers

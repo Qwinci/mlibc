@@ -17,6 +17,10 @@ int alphasort(const struct dirent **a, const struct dirent **b) {
 	return strcoll((*a)->d_name, (*b)->d_name);
 }
 
+extern "C" int alphasort64(const struct dirent **a, const struct dirent **b) {
+	return strcoll((*a)->d_name, (*b)->d_name);
+}
+
 int closedir(DIR *dir) {
 	// TODO: Deallocate the dir structure.
 	close(dir->__handle);
@@ -176,5 +180,9 @@ long telldir(DIR *) {
 }
 
 int versionsort(const struct dirent **a, const struct dirent **b) {
+	return strverscmp((*a)->d_name, (*b)->d_name);
+}
+
+extern "C" int versionsort64(const struct dirent **a, const struct dirent **b) {
 	return strverscmp((*a)->d_name, (*b)->d_name);
 }

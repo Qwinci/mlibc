@@ -331,10 +331,13 @@ extern "C" void *interpreterMain(uintptr_t *entry_stack) {
 	aux++;
 
 	// Add default library paths
-	libraryPaths->push_back("/lib");
+	//libraryPaths->push_back("/lib");
+	libraryPaths->push_back("/home/visa/Projects/mlibc/build/install/lib64");
+	libraryPaths->push_back("/usr/lib/gcc/x86_64-pc-linux-gnu/13");
 	libraryPaths->push_back("/lib64");
-	libraryPaths->push_back("/usr/lib");
+	//libraryPaths->push_back("/usr/lib");
 	libraryPaths->push_back("/usr/lib64");
+	libraryPaths->push_back("/usr/lib/llvm/17/lib64");
 
 	// Parse the actual vector.
 	while(true) {
@@ -773,6 +776,45 @@ void __dlapi_enter(uintptr_t *entry_stack) {
 #else
 	(void)entry_stack;
 #endif
+}
+
+struct dl_find_object {
+	unsigned long long dlfo_flags;
+	void *dlfo_map_start;
+	void *dlfo_map_end;
+	struct LinkMap *dlfo_link_map;
+	void *dlfo_eh_frame;
+	unsigned long long __dlfo_unused[7];
+};
+
+extern "C" [[gnu::visibility("default")]] int _dl_find_object(void *address, dl_find_object *result) {
+	for(size_t i = 0; i < initialRepository->loadedObjects.size(); i++) {
+		auto object = initialRepository->loadedObjects[i];
+		if(object->baseAddress > (uintptr_t)address) {
+			continue;
+		}
+
+		uintptr_t end_addr = 0;
+		for(size_t j = 0; j < object->phdrCount; j++) {
+			auto phdr = (elf_phdr *)((uintptr_t)object->phdrPointer + j * object->phdrEntrySize);
+			if(phdr->p_type == PT_GNU_EH_FRAME) {
+				result->dlfo_eh_frame = (void *)(object->baseAddress + phdr->p_vaddr);
+				continue;
+			}
+			if(phdr->p_type != PT_LOAD) {
+				continue;
+			}
+			if(phdr->p_vaddr + phdr->p_memsz > end_addr) {
+				end_addr = phdr->p_vaddr + phdr->p_memsz;
+			}
+		}
+
+		result->dlfo_flags = 0;
+		result->dlfo_map_start = (void *)object->baseAddress;
+		result->dlfo_map_end = (void *)(object->baseAddress + end_addr);
+		return 0;
+	}
+	return -1;
 }
 
 // XXX(qookie):

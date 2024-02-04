@@ -1,4 +1,5 @@
 
+#include "bits/threads.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -19,6 +20,13 @@
 #include <mlibc/tcb.hpp>
 #include <mlibc/tid.hpp>
 #include <mlibc/threads.hpp>
+
+struct __mlibc_threadattr_extra {
+	cpu_set_t *__mlibc_cpuset;
+	size_t __mlibc_cpusetsize;
+	sigset_t __mlibc_sigmask;
+	int __mlibc_sigmaskset;
+};
 
 static bool enableTrace = false;
 
@@ -75,7 +83,13 @@ int pthread_attr_init(pthread_attr_t *attr) {
 	return 0;
 }
 
-int pthread_attr_destroy(pthread_attr_t *) {
+int pthread_attr_destroy(pthread_attr_t *attr) {
+	if (!attr) {
+		return EINVAL;
+	}
+	if (attr->__mlibc_extra) {
+		free(attr->__mlibc_extra);
+	}
 	return 0;
 }
 
@@ -190,19 +204,19 @@ int pthread_attr_getaffinity_np(const pthread_attr_t *__restrict attr,
 	if (!attr)
 		return EINVAL;
 
-	if (!attr->__mlibc_cpuset) {
+	if (!attr->__mlibc_extra || !attr->__mlibc_extra->__mlibc_cpuset) {
 		memset(cpusetp, -1, cpusetsize);
 		return 0;
 	}
 
-	for (size_t cnt = cpusetsize; cnt < attr->__mlibc_cpusetsize; cnt++)
-		if (reinterpret_cast<char*>(attr->__mlibc_cpuset)[cnt] != '\0')
+	for (size_t cnt = cpusetsize; cnt < attr->__mlibc_extra->__mlibc_cpusetsize; cnt++)
+		if (reinterpret_cast<char*>(attr->__mlibc_extra->__mlibc_cpuset)[cnt] != '\0')
 			return ERANGE;
 
-	auto p = memcpy(cpusetp, attr->__mlibc_cpuset,
-			std::min(cpusetsize, attr->__mlibc_cpusetsize));
-	if (cpusetsize > attr->__mlibc_cpusetsize)
-		memset(p, '\0', cpusetsize - attr->__mlibc_cpusetsize);
+	auto p = memcpy(cpusetp, attr->__mlibc_extra->__mlibc_cpuset,
+			std::min(cpusetsize, attr->__mlibc_extra->__mlibc_cpusetsize));
+	if (cpusetsize > attr->__mlibc_extra->__mlibc_cpusetsize)
+		memset(p, '\0', cpusetsize - attr->__mlibc_extra->__mlibc_cpusetsize);
 
 	return 0;
 }
@@ -212,22 +226,28 @@ int pthread_attr_setaffinity_np(pthread_attr_t *__restrict attr,
 	if (!attr)
 		return EINVAL;
 
+	if (!attr->__mlibc_extra) {
+		attr->__mlibc_extra = static_cast<__mlibc_threadattr_extra*>(calloc(1, sizeof(__mlibc_threadattr_extra)));
+		if (!attr->__mlibc_extra)
+			return ENOMEM;
+	}
+
 	if (!cpusetp || !cpusetsize) {
-		attr->__mlibc_cpuset = NULL;
-		attr->__mlibc_cpusetsize = 0;
+		attr->__mlibc_extra->__mlibc_cpuset = NULL;
+		attr->__mlibc_extra->__mlibc_cpusetsize = 0;
 		return 0;
 	}
 
-	if (attr->__mlibc_cpusetsize != cpusetsize) {
-		auto newp = realloc(attr->__mlibc_cpuset, cpusetsize);
+	if (attr->__mlibc_extra->__mlibc_cpusetsize != cpusetsize) {
+		auto newp = realloc(attr->__mlibc_extra->__mlibc_cpuset, cpusetsize);
 		if (!newp)
 			return ENOMEM;
 
-		attr->__mlibc_cpuset = static_cast<cpu_set_t*>(newp);
-		attr->__mlibc_cpusetsize = cpusetsize;
+		attr->__mlibc_extra->__mlibc_cpuset = static_cast<cpu_set_t*>(newp);
+		attr->__mlibc_extra->__mlibc_cpusetsize = cpusetsize;
 	}
 
-	memcpy(attr->__mlibc_cpuset, cpusetp, cpusetsize);
+	memcpy(attr->__mlibc_extra->__mlibc_cpuset, cpusetp, cpusetsize);
 	return 0;
 }
 
@@ -236,12 +256,12 @@ int pthread_attr_getsigmask_np(const pthread_attr_t *__restrict attr,
 	if (!attr)
 		return EINVAL;
 
-	if (!attr->__mlibc_sigmaskset) {
+	if (!attr->__mlibc_extra || !attr->__mlibc_extra->__mlibc_sigmaskset) {
 		sigemptyset(sigmask);
 		return PTHREAD_ATTR_NO_SIGMASK_NP;
 	}
 
-	*sigmask = attr->__mlibc_sigmask;
+	*sigmask = attr->__mlibc_extra->__mlibc_sigmask;
 
 	return 0;
 }
@@ -250,16 +270,22 @@ int pthread_attr_setsigmask_np(pthread_attr_t *__restrict attr,
 	if (!attr)
 		return EINVAL;
 
+	if (!attr->__mlibc_extra) {
+		attr->__mlibc_extra = static_cast<__mlibc_threadattr_extra*>(calloc(1, sizeof(__mlibc_threadattr_extra)));
+		if (!attr->__mlibc_extra)
+			return ENOMEM;
+	}
+
 	if (!sigmask) {
-		attr->__mlibc_sigmaskset = 0;
+		attr->__mlibc_extra->__mlibc_sigmaskset = 0;
 		return 0;
 	}
 
-	attr->__mlibc_sigmask = *sigmask;
-	attr->__mlibc_sigmaskset = 1;
+	attr->__mlibc_extra->__mlibc_sigmask = *sigmask;
+	attr->__mlibc_extra->__mlibc_sigmaskset = 1;
 
 	// Filter out internally used signals.
-	sigdelset(&attr->__mlibc_sigmask, SIGCANCEL);
+	sigdelset(&attr->__mlibc_extra->__mlibc_sigmask, SIGCANCEL);
 
 	return 0;
 }
@@ -740,6 +766,10 @@ int pthread_atfork(void (*prepare) (void), void (*parent) (void), void (*child) 
 	return 0;
 }
 
+extern "C" int __register_atfork(void (*prepare)(), void (*parent)(), void (*child)(), void* __dso_handle) {
+	return pthread_atfork(prepare, parent, child);
+}
+
 // ----------------------------------------------------------------------------
 // pthread_key functions.
 // ----------------------------------------------------------------------------
@@ -767,6 +797,8 @@ int pthread_key_create(pthread_key_t *out, void (*destructor)(void *)) {
 
 	return 0;
 }
+
+extern "C" [[gnu::alias("pthread_key_create")]] int __pthread_key_create(pthread_key_t *out, void (*destructor)(void *));
 
 int pthread_key_delete(pthread_key_t key) {
 	SCOPE_TRACE();
@@ -943,6 +975,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex) {
 }
 
 int pthread_mutex_lock(pthread_mutex_t *mutex) {
+	//mlibc::infoLogger() << "pthread mutex lock " << mutex << " at address " << __builtin_return_address(0) << frg::endlog;
 	SCOPE_TRACE();
 
 	return mlibc::thread_mutex_lock(mutex);
@@ -982,6 +1015,7 @@ int pthread_mutex_timedlock(pthread_mutex_t *__restrict,
 }
 
 int pthread_mutex_unlock(pthread_mutex_t *mutex) {
+	//mlibc::infoLogger() << "pthread mutex unlock at address " << __builtin_return_address(0) << frg::endlog;
 	SCOPE_TRACE();
 
 	return mlibc::thread_mutex_unlock(mutex);

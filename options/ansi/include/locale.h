@@ -6,13 +6,13 @@
 
 #include <bits/null.h>
 
-#define LC_ALL 1
-#define LC_COLLATE 2
-#define LC_CTYPE 3
+#define LC_ALL 6
+#define LC_COLLATE 3
+#define LC_CTYPE 0
 #define LC_MONETARY 4
-#define LC_NUMERIC 5
-#define LC_TIME 6
-#define LC_MESSAGES 7
+#define LC_NUMERIC 1
+#define LC_TIME 2
+#define LC_MESSAGES 5
 
 #define LC_GLOBAL_LOCALE ((locale_t) -1L)
 

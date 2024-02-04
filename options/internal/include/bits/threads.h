@@ -3,8 +3,9 @@
 
 #include <abi-bits/clockid_t.h>
 #include <bits/size_t.h>
-#include <bits/cpu_set.h>
-#include <bits/sigset_t.h>
+#ifndef __cplusplus
+#include <assert.h>
+#endif
 
 // values for pthread_attr_{get,set}detachstate().
 #define __MLIBC_THREAD_CREATE_JOINABLE 0
@@ -13,8 +14,8 @@
 // values for pthread_mutexattr_{get,set}type().
 #define __MLIBC_THREAD_MUTEX_DEFAULT 0
 #define __MLIBC_THREAD_MUTEX_NORMAL 0
-#define __MLIBC_THREAD_MUTEX_ERRORCHECK 1
-#define __MLIBC_THREAD_MUTEX_RECURSIVE 2
+#define __MLIBC_THREAD_MUTEX_RECURSIVE 1
+#define __MLIBC_THREAD_MUTEX_ERRORCHECK 2
 
 // values for pthread_mutexattr_{get,set}pshared().
 #define __MLIBC_THREAD_PROCESS_PRIVATE 0
@@ -34,46 +35,51 @@ struct sched_param {
 };
 
 struct __mlibc_thread_data;
+struct __mlibc_threadattr_extra;
 
 struct __mlibc_threadattr {
 	size_t __mlibc_guardsize;
 	size_t __mlibc_stacksize;
 	void *__mlibc_stackaddr;
-	int __mlibc_detachstate;
-	int __mlibc_scope;
-	int __mlibc_inheritsched;
+	int __mlibc_detachstate : 1;
+	int __mlibc_scope : 1;
+	int __mlibc_inheritsched : 1;
 	struct sched_param __mlibc_schedparam;
 	int __mlibc_schedpolicy;
-	cpu_set_t *__mlibc_cpuset;
-	size_t __mlibc_cpusetsize;
-	sigset_t __mlibc_sigmask;
-	int __mlibc_sigmaskset;
+	struct __mlibc_threadattr_extra *__mlibc_extra;
 };
+static_assert(sizeof(struct __mlibc_threadattr) <= 56);
 
 struct __mlibc_mutex {
 	unsigned int __mlibc_state;
 	unsigned int __mlibc_recursion;
 	unsigned int __mlibc_flags;
 	int __mlibc_prioceiling;
+	// this must stay here because binary glibc compat
+	int __mlibc_kind;
 };
+static_assert(sizeof(struct __mlibc_mutex) <= 40);
 
 struct __mlibc_mutexattr {
-	int __mlibc_type;
-	int __mlibc_robust;
-	int __mlibc_protocol;
-	int __mlibc_pshared;
-	int __mlibc_prioceiling;
+	int __mlibc_type : 2;
+	int __mlibc_robust : 1;
+	int __mlibc_protocol : 2;
+	int __mlibc_pshared : 1;
+	int __mlibc_prioceiling : 1;
 };
+static_assert(sizeof(struct __mlibc_mutexattr) <= 4);
 
 struct __mlibc_cond {
 	unsigned int __mlibc_seq;
 	unsigned int __mlibc_flags;
 	clockid_t __mlibc_clock;
 };
+static_assert(sizeof(struct __mlibc_cond) <= 48);
 
 struct __mlibc_condattr {
-	int __mlibc_pshared;
-	clockid_t __mlibc_clock;
+	int __mlibc_pshared : 1;
+	clockid_t __mlibc_clock : 31;
 };
+static_assert(sizeof(struct __mlibc_condattr) <= 4);
 
 #endif /* _INTERNAL_THREADS_H */

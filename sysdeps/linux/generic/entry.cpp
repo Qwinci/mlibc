@@ -36,3 +36,14 @@ extern "C" void __mlibc_entry(uintptr_t *entry_stack, int (*main_fn)(int argc, c
 	auto result = main_fn(__mlibc_stack_data.argc, __mlibc_stack_data.argv, environ);
 	exit(result);
 }
+
+extern "C" void* __libc_stack_end = nullptr;
+
+extern "C" int __libc_start_main(int (*main_fn)(int, char *argv[0], char *env[]), int argc, char **ebp_av, void (*init)(), void (*fini)(), void (*rtdl_fini)(), void* stack_end) {
+	__libc_stack_end = stack_end;
+	
+	__dlapi_enter((uintptr_t*)stack_end);
+	__hwcap = getauxval(AT_HWCAP);
+	auto result = main_fn(__mlibc_stack_data.argc, __mlibc_stack_data.argv, environ);
+	exit(result);
+}

@@ -1,4 +1,5 @@
 
+#include <fcntl.h>
 #include <stdio_ext.h>
 #include <bits/ensure.h>
 #include <mlibc/debug.hpp>
@@ -60,5 +61,13 @@ const char *__freadptr(FILE *, size_t *) {
 void __fseterr(FILE *) {
 	__ensure(!"Not implemented");
 	__builtin_unreachable();
+}
+
+extern "C" int __isoc99_sscanf(const char *__restrict buffer, const char *__restrict format, ...) {
+	va_list args;
+	va_start(args, format);
+	auto ret = vsscanf(buffer, format, args);
+	va_end(args);
+	return ret;
 }
 

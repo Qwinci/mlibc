@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/select.h>
 #include <wchar.h>
 #include <ctype.h>
 #include <limits.h>
@@ -287,6 +288,14 @@ int fprintf(FILE *__restrict stream, const char *__restrict format, ...) {
 	return result;
 }
 
+extern "C" int __fprintf_chk(FILE *__restrict stream, int flag, const char *__restrict format, ...) {
+	va_list args;
+	va_start(args, format);
+	int result = vfprintf(stream, format, args);
+	va_end(args);
+	return result;
+}
+
 int fscanf(FILE *__restrict stream, const char *__restrict format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -295,7 +304,19 @@ int fscanf(FILE *__restrict stream, const char *__restrict format, ...) {
 	return result;
 }
 
+extern "C" [[gnu::alias("fscanf")]] int __isoc99_fscanf(FILE *__restrict stream, const char *__restrict format, ...);
+extern "C" [[gnu::alias("fscanf")]] int __isoc23_fscanf(FILE* __restrict stream, const char *__restrict format, ...);
+extern "C" [[gnu::alias("scanf")]] int __isoc99_scanf(const char *format, ...);
+
 int printf(const char *__restrict format, ...) {
+	va_list args;
+	va_start(args, format);
+	int result = vfprintf(stdout, format, args);
+	va_end(args);
+	return result;
+}
+
+extern "C" int __printf_chk(int flag, const char *__restrict format, ...) {
 	va_list args;
 	va_start(args, format);
 	int result = vfprintf(stdout, format, args);
@@ -707,6 +728,8 @@ int scanf(const char *__restrict format, ...) {
 	return result;
 }
 
+extern "C" [[gnu::alias("scanf")]] int __isoc23_scanf(const char *__restrict format, ...);
+
 int snprintf(char *__restrict buffer, size_t max_size, const char *__restrict format, ...) {
 	va_list args;
 	va_start(args, format);
@@ -715,10 +738,26 @@ int snprintf(char *__restrict buffer, size_t max_size, const char *__restrict fo
 	return result;
 }
 
+extern "C" int __snprintf_chk(char *__restrict str, size_t maxlen, int flag, size_t strlen, const char *__restrict format, ...) {
+	va_list args;
+	va_start(args, format);
+	auto ret = vsnprintf(str, maxlen, format, args);
+	va_end(args);
+	return ret;
+}
+
 int sprintf(char *__restrict buffer, const char *__restrict format, ...) {
 	va_list args;
 	va_start(args, format);
 	int result = vsprintf(buffer, format, args);
+	va_end(args);
+	return result;
+}
+
+extern "C" int __sprintf_chk(char *__restrict str, int flag, size_t strlen, const char *__restrict format, ...) {
+	va_list args;
+	va_start(args, format);
+	int result = vsprintf(str, format, args);
 	va_end(args);
 	return result;
 }
@@ -732,6 +771,8 @@ int sscanf(const char *__restrict buffer, const char *__restrict format, ...) {
 	va_end(args);
 	return result;
 }
+
+extern "C" [[gnu::alias("sscanf")]] int __isoc23_sscanf(const char* __restrict, const char *__restrict, ...);
 
 int vfprintf(FILE *__restrict stream, const char *__restrict format, __builtin_va_list args) {
 	frg::va_struct vs;
@@ -747,6 +788,14 @@ int vfprintf(FILE *__restrict stream, const char *__restrict format, __builtin_v
 		return -static_cast<int>(res.error());
 
 	return p.count;
+}
+
+extern "C" int __vfprintf_chk(FILE * fp, int flag, const char * format, va_list ap) {
+	return vfprintf(fp, format, ap);
+}
+
+extern "C" long __fdelt_chk(long d) {
+	return d / (8 * (int) sizeof(fd_mask));
 }
 
 int vfscanf(FILE *__restrict stream, const char *__restrict format, __builtin_va_list args) {
@@ -779,6 +828,9 @@ int vfscanf(FILE *__restrict stream, const char *__restrict format, __builtin_va
 	return do_scanf(handler, format, args);
 }
 
+extern "C" [[gnu::alias("vfscanf")]] int __isoc99_vfscanf(FILE *__restrict stream, const char *__restrict format, __builtin_va_list args);
+extern "C" [[gnu::alias("vfscanf")]] int __isoc23_vfscanf(FILE *__restrict stream, const char *__restrict format, __builtin_va_list args);
+
 int vprintf(const char *__restrict format, __builtin_va_list args){
 	return vfprintf(stdout, format, args);
 }
@@ -804,6 +856,12 @@ int vsnprintf(char *__restrict buffer, size_t max_size,
 	return p.count;
 }
 
+extern "C" int __vsnprintf_chk(char *__restrict s, size_t maxlen, int flag, size_t slen, const char *__restrict format, va_list args) {
+	return vsnprintf(s, maxlen, format, args);
+}
+
+extern "C" [[gnu::alias("vsscanf")]] int __isoc99_vsscanf(const char *__restrict buffer, const char *__restrict format, __builtin_va_list args);
+
 int vsprintf(char *__restrict buffer, const char *__restrict format, __builtin_va_list args) {
 	frg::va_struct vs;
 	frg::arg arg_list[NL_ARGMAX + 1];
@@ -816,6 +874,10 @@ int vsprintf(char *__restrict buffer, const char *__restrict format, __builtin_v
 		return -static_cast<int>(res.error());
 	p.buffer[p.count] = 0;
 	return p.count;
+}
+
+extern "C" int __vsprintf_chk(char *__restrict s, int flag, size_t slen, const char *__restrict format, va_list args) {
+	return vsprintf(s, format, args);
 }
 
 int vsscanf(const char *__restrict buffer, const char *__restrict format, __builtin_va_list args) {
@@ -861,7 +923,7 @@ int fgetc(FILE *stream) {
 	return c;
 }
 
-char *fgets(char *__restrict buffer, size_t max_size, FILE *__restrict stream) {
+char *fgets(char *__restrict buffer, int max_size, FILE *__restrict stream) {
 	auto file = static_cast<mlibc::abstract_file *>(stream);
 	frg::unique_lock lock(file->_lock);
 	return fgets_unlocked(buffer, max_size, stream);
@@ -909,7 +971,7 @@ int getchar(void) {
 }
 
 char *gets(char *s){
-	return fgets(s, SIZE_MAX, stdin);
+	return fgets(s, INT_MAX, stdin);
 }
 
 int putc_unlocked(int c, FILE *stream) {
@@ -976,6 +1038,10 @@ size_t fread(void *buffer, size_t size, size_t count, FILE *file_base) {
 	auto file = static_cast<mlibc::abstract_file *>(file_base);
 	frg::unique_lock lock(file->_lock);
 	return fread_unlocked(buffer, size, count, file_base);
+}
+
+extern "C" size_t __fread_chk(void *__restrict buf, size_t size, size_t count, FILE *stream, size_t) {
+	return fread(buf, size, count, stream);
 }
 
 size_t fwrite(const void *buffer, size_t size , size_t count, FILE *file_base) {
@@ -1077,9 +1143,19 @@ ssize_t getdelim(char **line, size_t *n, int delim, FILE *stream) {
 	}
 }
 
+extern "C" [[gnu::alias("getdelim")]] ssize_t __getdelim(char **line, size_t *n, int delim, FILE *stream);
+
 // GLIBC extensions.
 
 int asprintf(char **out, const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	int result = vasprintf(out, format, args);
+	va_end(args);
+	return result;
+}
+
+extern "C" int __asprintf_chk(char **out, int flag, const char *format, ...) {
 	va_list args;
 	va_start(args, format);
 	int result = vasprintf(out, format, args);
@@ -1101,6 +1177,10 @@ int vasprintf(char **out, const char *format, __builtin_va_list args) {
 	p.buffer[p.count] = 0;
 	*out = p.buffer;
 	return p.count;
+}
+
+extern "C" int __vasprintf_chk(char **out, int flag, const char *format, va_list ap) {
+	return vasprintf(out, format, ap);
 }
 
 // Linux unlocked I/O extensions.
@@ -1267,4 +1347,30 @@ char *fgets_unlocked(char *__restrict buffer, int max_size, FILE *stream) {
 			return buffer;
 		}
 	}
+}
+
+extern "C" void __explicit_bzero_chk(void *dst, size_t len, size_t dstlen) {
+	memset(dst, 0, len);
+	asm volatile("" : : : "memory");
+}
+
+extern "C" void * __memset_chk(void *dest, int c, size_t len, size_t destlen) {
+	return memset(dest, c, len);
+}
+
+struct mallinfo2 {
+	size_t arena;
+	size_t ordblks;
+	size_t smblks;
+	size_t hblks;
+	size_t hblkhd;
+	size_t usmblks;
+	size_t fsmblks;
+	size_t uordblks;
+	size_t fordblks;
+	size_t keepcost;
+};
+
+extern "C" mallinfo2 mallinfo2() {
+	return {};
 }

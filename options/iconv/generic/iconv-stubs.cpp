@@ -27,8 +27,9 @@ iconv_t iconv_open(const char *tocode, const char *fromcode) {
 		iconv_t cd = (iconv_t)1;
 		return cd;
 	}
-	__ensure(!"iconv_open() not implemented");
-	__builtin_unreachable();
+	return (iconv_t)1;
+	//_ensure(!"iconv_open() not implemented");
+	//__builtin_unreachable();
 }
 
 

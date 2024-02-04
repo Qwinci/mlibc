@@ -8,6 +8,9 @@ long double fmodl(long double x, long double y)
 #elif (LDBL_MANT_DIG == 64 || LDBL_MANT_DIG == 113) && LDBL_MAX_EXP == 16384
 long double fmodl(long double x, long double y)
 {
+	// qwinci todo
+	if (isnan(x))
+		return 0;
 	union ldshape ux = {x}, uy = {y};
 	int ex = ux.i.se & 0x7fff;
 	int ey = uy.i.se & 0x7fff;

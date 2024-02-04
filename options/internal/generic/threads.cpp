@@ -1,6 +1,9 @@
+#include "mlibc/internal-sysdeps.hpp"
 #include <abi-bits/errno.h>
 #include <bits/threads.h>
 #include <bits/ensure.h>
+#include <bits/cpu_set.h>
+#include <bits/sigset_t.h>
 #include <mlibc/all-sysdeps.hpp>
 #include <mlibc/debug.hpp>
 #include <mlibc/lock.hpp>
@@ -8,6 +11,13 @@
 #include <mlibc/tcb.hpp>
 
 extern "C" Tcb *__rtdl_allocateTcb();
+
+struct __mlibc_threadattr_extra {
+	cpu_set_t *__mlibc_cpuset;
+	size_t __mlibc_cpusetsize;
+	sigset_t __mlibc_sigmask;
+	int __mlibc_sigmaskset;
+};
 
 namespace mlibc {
 
@@ -20,9 +30,9 @@ int thread_create(struct __mlibc_thread_data **__restrict thread, const struct _
 	else
 		attr = *attrp;
 
-	if (attr.__mlibc_cpuset)
+	if (attr.__mlibc_extra && attr.__mlibc_extra->__mlibc_cpuset)
 		mlibc::infoLogger() << "pthread_create(): cpuset is ignored!" << frg::endlog;
-	if (attr.__mlibc_sigmaskset)
+	if (attr.__mlibc_extra && attr.__mlibc_extra->__mlibc_sigmaskset)
 		mlibc::infoLogger() << "pthread_create(): sigmask is ignored!" << frg::endlog;
 
 	// TODO: due to alignment guarantees, the stackaddr and stacksize might change
@@ -85,9 +95,6 @@ int thread_attr_init(struct __mlibc_threadattr *attr) {
 	return 0;
 }
 
-static constexpr unsigned int mutexRecursive = 1;
-static constexpr unsigned int mutexErrorCheck = 2;
-
 // TODO: either use uint32_t or determine the bit based on sizeof(int).
 static constexpr unsigned int mutex_owner_mask = (static_cast<uint32_t>(1) << 30) - 1;
 static constexpr unsigned int mutex_waiters_bit = static_cast<uint32_t>(1) << 31;
@@ -108,16 +115,16 @@ int thread_mutex_init(struct __mlibc_mutex *__restrict mutex,
 	mutex->__mlibc_prioceiling = 0; // TODO: We don't implement this.
 
 	if(type == __MLIBC_THREAD_MUTEX_RECURSIVE) {
-		mutex->__mlibc_flags |= mutexRecursive;
+		mutex->__mlibc_kind = __MLIBC_THREAD_MUTEX_RECURSIVE;
 	}else if(type == __MLIBC_THREAD_MUTEX_ERRORCHECK) {
-		mutex->__mlibc_flags |= mutexErrorCheck;
+		mutex->__mlibc_kind = __MLIBC_THREAD_MUTEX_ERRORCHECK;
 	}else{
 		__ensure(type == __MLIBC_THREAD_MUTEX_NORMAL);
 	}
 
 	// TODO: Other values aren't supported yet.
 	__ensure(robust == __MLIBC_THREAD_MUTEX_STALLED);
-	__ensure(protocol == __MLIBC_THREAD_PRIO_NONE);
+	//__ensure(protocol == __MLIBC_THREAD_PRIO_NONE);
 	__ensure(pshared == __MLIBC_THREAD_PROCESS_PRIVATE);
 
 	return 0;
@@ -143,8 +150,8 @@ int thread_mutex_lock(struct __mlibc_mutex *mutex) {
 		}else{
 			// If this (recursive) mutex is already owned by us, increment the recursion level.
 			if((expected & mutex_owner_mask) == this_tid) {
-				if(!(mutex->__mlibc_flags & mutexRecursive)) {
-					if (mutex->__mlibc_flags & mutexErrorCheck)
+				if(mutex->__mlibc_kind != __MLIBC_THREAD_MUTEX_RECURSIVE) {
+					if (mutex->__mlibc_kind == __MLIBC_THREAD_MUTEX_ERRORCHECK)
 						return EDEADLK;
 					else
 						mlibc::panicLogger() << "mlibc: pthread_mutex deadlock detected!"
@@ -191,10 +198,10 @@ int thread_mutex_unlock(struct __mlibc_mutex *mutex) {
 	// may have been destroyed by another thread.
 
 	unsigned int this_tid = mlibc::this_tid();
-	if ((flags & mutexErrorCheck) && (state & mutex_owner_mask) != this_tid)
+	if (mutex->__mlibc_kind == __MLIBC_THREAD_MUTEX_ERRORCHECK && (state & mutex_owner_mask) != this_tid)
 		return EPERM;
 
-	if ((flags & mutexErrorCheck) && !(state & mutex_owner_mask))
+	if (mutex->__mlibc_kind == __MLIBC_THREAD_MUTEX_ERRORCHECK && !(state & mutex_owner_mask))
 		return EINVAL;
 
 	__ensure((state & mutex_owner_mask) == this_tid);
@@ -243,7 +250,7 @@ int thread_cond_init(struct __mlibc_cond *__restrict cond, const struct __mlibc_
 	cond->__mlibc_clock = clock;
 	cond->__mlibc_flags = pshared;
 
-	__atomic_store_n(&cond->__mlibc_seq, 1, __ATOMIC_RELAXED);
+	__atomic_store_n(&cond->__mlibc_seq, 0, __ATOMIC_RELAXED);
 
 	return 0;
 }
@@ -262,6 +269,10 @@ int thread_cond_broadcast(struct __mlibc_cond *cond) {
 
 int thread_cond_timedwait(struct __mlibc_cond *__restrict cond, __mlibc_mutex *__restrict mutex,
 		const struct timespec *__restrict abstime) {
+	if (mutex->__mlibc_state == 0) {
+		return EPERM;
+	}
+
 	// TODO: pshared isn't supported yet.
 	__ensure(cond->__mlibc_flags == 0);
 

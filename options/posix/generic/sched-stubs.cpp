@@ -1,4 +1,5 @@
 
+#include "bits/cpu_set.h"
 #include <bits/ensure.h>
 #include <errno.h>
 #include <limits.h>
@@ -47,4 +48,12 @@ int sched_setscheduler(pid_t, int, const struct sched_param *) {
 int sched_getparam(pid_t, struct sched_param *) {
 	__ensure(!"Not implemented");
 	__builtin_unreachable();
+}
+
+extern "C" int __sched_cpucount(size_t set_size, const cpu_set_t *set) {
+	int count = 0;
+	for (int i = 0; i < set_size / __NCPUBITS; ++i) {
+		count += __builtin_popcountl(set->__bits[i]);
+	}
+	return count;
 }
