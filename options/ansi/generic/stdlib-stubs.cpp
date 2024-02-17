@@ -35,6 +35,7 @@ namespace {
 	// The string functions mbstowcs() and wcstombs() do *not* have this state.
 	thread_local __mlibc_mbstate mblen_state = __MLIBC_MBSTATE_INITIALIZER;
 	thread_local __mlibc_mbstate mbtowc_state = __MLIBC_MBSTATE_INITIALIZER;
+	thread_local __mlibc_mbstate wctomb_state = __MLIBC_MBSTATE_INITIALIZER;
 }
 
 double atof(const char *string) {
@@ -433,9 +434,14 @@ int mbtowc(wchar_t *__restrict wc, const char *__restrict mb, size_t max_size) {
 	}
 }
 
-int wctomb(char *, wchar_t) {
-	__ensure(!"Not implemented");
-	__builtin_unreachable();
+int wctomb(char *dst, wchar_t c) {
+	auto cc = mlibc::current_charcode();
+	if (dst)
+		return wcrtomb(dst, c, &wctomb_state);
+	else {
+		wctomb_state = __MLIBC_MBSTATE_INITIALIZER;
+		return cc->has_shift_states;
+	}
 }
 
 size_t mbstowcs(wchar_t *wcs, const char *mbs, size_t wc_limit) {
