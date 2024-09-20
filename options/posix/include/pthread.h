@@ -61,7 +61,7 @@ extern "C" {
 
 #define PTHREAD_ONCE_INIT {0}
 #define PTHREAD_COND_INITIALIZER {0}
-#define PTHREAD_MUTEX_INITIALIZER {0, 0, 0, 0}
+#define PTHREAD_MUTEX_INITIALIZER {0, 0, 0, 0, 0}
 #define PTHREAD_RWLOCK_INITIALIZER {0, 0, 0}
 
 #define PTHREAD_CANCELED ((void*) -1)
@@ -81,7 +81,7 @@ extern "C" {
 // TODO: move to own file and include in sys/types.h
 typedef struct __mlibc_threadattr pthread_attr_t;
 
-typedef uintptr_t pthread_key_t;
+typedef unsigned int pthread_key_t;
 
 struct __mlibc_once {
 	unsigned int __mlibc_done;

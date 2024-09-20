@@ -13,8 +13,8 @@
 // values for pthread_mutexattr_{get,set}type().
 #define __MLIBC_THREAD_MUTEX_DEFAULT 0
 #define __MLIBC_THREAD_MUTEX_NORMAL 0
-#define __MLIBC_THREAD_MUTEX_ERRORCHECK 1
-#define __MLIBC_THREAD_MUTEX_RECURSIVE 2
+#define __MLIBC_THREAD_MUTEX_RECURSIVE 1
+#define __MLIBC_THREAD_MUTEX_ERRORCHECK 2
 
 // values for pthread_mutexattr_{get,set}pshared().
 #define __MLIBC_THREAD_PROCESS_PRIVATE 0
@@ -39,30 +39,31 @@ struct __mlibc_threadattr {
 	size_t __mlibc_guardsize;
 	size_t __mlibc_stacksize;
 	void *__mlibc_stackaddr;
-	int __mlibc_detachstate;
-	int __mlibc_scope;
-	int __mlibc_inheritsched;
+	unsigned int __mlibc_detachstate : 1;
+	unsigned int __mlibc_scope : 1;
+	unsigned int __mlibc_inheritsched : 1;
+	unsigned int __mlibc_sigmaskset : 1;
+	unsigned int __mlibc_schedpolicy : 28;
 	struct sched_param __mlibc_schedparam;
-	int __mlibc_schedpolicy;
 	cpu_set_t *__mlibc_cpuset;
 	size_t __mlibc_cpusetsize;
-	sigset_t __mlibc_sigmask;
-	int __mlibc_sigmaskset;
+	sigset_t *__mlibc_sigmask;
 };
 
 struct __mlibc_mutex {
 	unsigned int __mlibc_state;
 	unsigned int __mlibc_recursion;
-	unsigned int __mlibc_flags;
+	unsigned long __pad;
+	unsigned int __mlibc_kind;
 	int __mlibc_prioceiling;
 };
 
 struct __mlibc_mutexattr {
-	int __mlibc_type;
-	int __mlibc_robust;
-	int __mlibc_protocol;
-	int __mlibc_pshared;
-	int __mlibc_prioceiling;
+	unsigned int __mlibc_type : 3;
+	unsigned int __mlibc_robust : 1;
+	unsigned int __mlibc_protocol : 2;
+	unsigned int __mlibc_pshared : 1;
+	unsigned int __mlibc_prioceiling : 24;
 };
 
 struct __mlibc_cond {
@@ -72,8 +73,8 @@ struct __mlibc_cond {
 };
 
 struct __mlibc_condattr {
-	int __mlibc_pshared;
-	clockid_t __mlibc_clock;
+	unsigned int __mlibc_pshared : 1;
+	clockid_t __mlibc_clock : 31;
 };
 
 #endif /* _INTERNAL_THREADS_H */

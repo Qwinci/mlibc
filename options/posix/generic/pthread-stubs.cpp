@@ -22,6 +22,26 @@
 
 static bool enableTrace = false;
 
+// Make sure that the struct sizes match Glibc.
+#if UINTPTR_MAX == UINT64_MAX
+static_assert(sizeof(pthread_mutex_t) <= 40);
+static_assert(sizeof(pthread_cond_t) <= 48);
+static_assert(sizeof(pthread_rwlock_t) <= 56);
+static_assert(sizeof(pthread_barrier_t) <= 32);
+static_assert(sizeof(pthread_attr_t) <= 56);
+#else
+static_assert(sizeof(pthread_mutex_t) <= 24);
+static_assert(sizeof(pthread_cond_t) <= 48);
+static_assert(sizeof(pthread_rwlock_t) <= 32);
+static_assert(sizeof(pthread_barrier_t) <= 20);
+static_assert(sizeof(pthread_attr_t) <= 36);
+#endif
+static_assert(sizeof(pthread_mutexattr_t) <= 4);
+static_assert(sizeof(pthread_condattr_t) <= 4);
+static_assert(sizeof(pthread_rwlockattr_t) <= 8);
+static_assert(sizeof(pthread_barrierattr_t) <= 4);
+static_assert(offsetof(pthread_mutex_t, __mlibc_kind) == sizeof(int) * 2 + sizeof(long));
+
 struct ScopeTrace {
 	ScopeTrace(const char *file, int line, const char *function)
 	: _file(file), _line(line), _function(function) {
@@ -45,8 +65,6 @@ private:
 };
 
 #define SCOPE_TRACE() ScopeTrace(__FILE__, __LINE__, __FUNCTION__)
-
-static constexpr unsigned int mutexRecursive = 1;
 
 // TODO: either use uint32_t or determine the bit based on sizeof(int).
 static constexpr unsigned int mutex_owner_mask = (static_cast<uint32_t>(1) << 30) - 1;
@@ -74,7 +92,9 @@ int pthread_attr_init(pthread_attr_t *attr) {
 	return 0;
 }
 
-int pthread_attr_destroy(pthread_attr_t *) {
+int pthread_attr_destroy(pthread_attr_t *attr) {
+	free(attr->__mlibc_cpuset);
+	free(attr->__mlibc_sigmask);
 	return 0;
 }
 
@@ -212,6 +232,7 @@ int pthread_attr_setaffinity_np(pthread_attr_t *__restrict attr,
 		return EINVAL;
 
 	if (!cpusetp || !cpusetsize) {
+		free(attr->__mlibc_cpuset);
 		attr->__mlibc_cpuset = NULL;
 		attr->__mlibc_cpusetsize = 0;
 		return 0;
@@ -240,7 +261,7 @@ int pthread_attr_getsigmask_np(const pthread_attr_t *__restrict attr,
 		return PTHREAD_ATTR_NO_SIGMASK_NP;
 	}
 
-	*sigmask = attr->__mlibc_sigmask;
+	*sigmask = *attr->__mlibc_sigmask;
 
 	return 0;
 }
@@ -254,11 +275,17 @@ int pthread_attr_setsigmask_np(pthread_attr_t *__restrict attr,
 		return 0;
 	}
 
-	attr->__mlibc_sigmask = *sigmask;
+	if(!attr->__mlibc_sigmask) {
+		attr->__mlibc_sigmask = static_cast<sigset_t *>(malloc(sizeof(sigset_t)));
+		if(!attr->__mlibc_sigmask)
+			return ENOMEM;
+	}
+
+	*attr->__mlibc_sigmask = *sigmask;
 	attr->__mlibc_sigmaskset = 1;
 
 	// Filter out internally used signals.
-	sigdelset(&attr->__mlibc_sigmask, SIGCANCEL);
+	sigdelset(attr->__mlibc_sigmask, SIGCANCEL);
 
 	return 0;
 }
@@ -966,7 +993,7 @@ int pthread_mutex_trylock(pthread_mutex_t *mutex) {
 	} else {
 		// If this (recursive) mutex is already owned by us, increment the recursion level.
 		if((expected & mutex_owner_mask) == this_tid) {
-			if(!(mutex->__mlibc_flags & mutexRecursive)) {
+			if(mutex->__mlibc_kind != __MLIBC_THREAD_MUTEX_RECURSIVE) {
 				return EBUSY;
 			}
 			++mutex->__mlibc_recursion;

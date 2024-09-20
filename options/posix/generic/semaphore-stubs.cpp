@@ -6,6 +6,13 @@
 #include <mlibc/ansi-sysdeps.hpp>
 #include <mlibc/posix-sysdeps.hpp>
 
+// Make sure that the struct size matches Glibc.
+#if UINTPTR_MAX == UINT64_MAX
+static_assert(sizeof(sem_t) <= 32);
+#else
+static_assert(sizeof(sem_t) <= 16);
+#endif
+
 static constexpr unsigned int semaphoreHasWaiters = static_cast<uint32_t>(1 << 31);
 static constexpr unsigned int semaphoreCountMask = static_cast<uint32_t>(1 << 31) - 1;
 

@@ -85,9 +85,6 @@ int thread_attr_init(struct __mlibc_threadattr *attr) {
 	return 0;
 }
 
-static constexpr unsigned int mutexRecursive = 1;
-static constexpr unsigned int mutexErrorCheck = 2;
-
 // TODO: either use uint32_t or determine the bit based on sizeof(int).
 static constexpr unsigned int mutex_owner_mask = (static_cast<uint32_t>(1) << 30) - 1;
 static constexpr unsigned int mutex_waiters_bit = static_cast<uint32_t>(1) << 31;
@@ -101,16 +98,8 @@ int thread_mutex_init(struct __mlibc_mutex *__restrict mutex,
 
 	mutex->__mlibc_state = 0;
 	mutex->__mlibc_recursion = 0;
-	mutex->__mlibc_flags = 0;
+	mutex->__mlibc_kind = type;
 	mutex->__mlibc_prioceiling = 0; // TODO: We don't implement this.
-
-	if(type == __MLIBC_THREAD_MUTEX_RECURSIVE) {
-		mutex->__mlibc_flags |= mutexRecursive;
-	}else if(type == __MLIBC_THREAD_MUTEX_ERRORCHECK) {
-		mutex->__mlibc_flags |= mutexErrorCheck;
-	}else{
-		__ensure(type == __MLIBC_THREAD_MUTEX_NORMAL);
-	}
 
 	// TODO: Other values aren't supported yet.
 	__ensure(robust == __MLIBC_THREAD_MUTEX_STALLED);
@@ -140,8 +129,8 @@ int thread_mutex_lock(struct __mlibc_mutex *mutex) {
 		}else{
 			// If this (recursive) mutex is already owned by us, increment the recursion level.
 			if((expected & mutex_owner_mask) == this_tid) {
-				if(!(mutex->__mlibc_flags & mutexRecursive)) {
-					if (mutex->__mlibc_flags & mutexErrorCheck)
+				if(mutex->__mlibc_kind != __MLIBC_THREAD_MUTEX_RECURSIVE) {
+					if (mutex->__mlibc_kind == __MLIBC_THREAD_MUTEX_ERRORCHECK)
 						return EDEADLK;
 					else
 						mlibc::panicLogger() << "mlibc: pthread_mutex deadlock detected!"
@@ -180,7 +169,7 @@ int thread_mutex_unlock(struct __mlibc_mutex *mutex) {
 	if(--mutex->__mlibc_recursion)
 		return 0;
 
-	auto flags = mutex->__mlibc_flags;
+	auto kind = mutex->__mlibc_kind;
 
 	// Reset the mutex to the unlocked state.
 	auto state = __atomic_exchange_n(&mutex->__mlibc_state, 0, __ATOMIC_RELEASE);
@@ -189,10 +178,10 @@ int thread_mutex_unlock(struct __mlibc_mutex *mutex) {
 	// may have been destroyed by another thread.
 
 	unsigned int this_tid = mlibc::this_tid();
-	if ((flags & mutexErrorCheck) && (state & mutex_owner_mask) != this_tid)
+	if (kind == __MLIBC_THREAD_MUTEX_ERRORCHECK && (state & mutex_owner_mask) != this_tid)
 		return EPERM;
 
-	if ((flags & mutexErrorCheck) && !(state & mutex_owner_mask))
+	if (kind == __MLIBC_THREAD_MUTEX_ERRORCHECK && !(state & mutex_owner_mask))
 		return EINVAL;
 
 	__ensure((state & mutex_owner_mask) == this_tid);
