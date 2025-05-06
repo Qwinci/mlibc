@@ -1,5 +1,6 @@
 #include <drm/drm.h>
 #include <drm/drm_fourcc.h>
+#include <drm/virtgpu_drm.h>
 
 #include <bits/ensure.h>
 #include <bits/errors.hpp>
@@ -1295,6 +1296,12 @@ int ioctl_drm(int fd, unsigned long request, void *arg, int *result, HelHandle h
 			param->handle = resp.drm_prime_handle();
 			*result = resp.result();
 			return 0;
+		}
+		case DRM_IOCTL_VIRTGPU_GET_CAPS: {
+			mlibc::infoLogger() << "\e[35mmlibc: DRM_IOCTL_VIRTGPU_GET_CAPS"
+			                       " is not implemented correctly\e[39m"
+			                    << frg::endlog;
+			return ENOSYS;
 		}
 	}
 
